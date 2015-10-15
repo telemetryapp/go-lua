@@ -2,6 +2,7 @@ package lua
 
 import (
 	"math"
+	"strconv"
 )
 
 type table struct {
@@ -206,16 +207,26 @@ func (t *table) length() int {
 }
 
 func arrayIndex(k value) int {
-	if n, ok := k.(float64); ok {
-		if i := int(n); float64(i) == n {
-			return i
+	switch k.(type) {
+	case float64:
+		if n, ok := k.(float64); ok {
+			if i := int(n); float64(i) == n {
+				return i
+			}
+		}
+
+	case string:
+		if n, err := strconv.Atoi(k.(string)); err == nil {
+			return n
 		}
 	}
+
 	return -1
 }
 
 func (l *State) next(t *table, key int) bool {
 	i, k := 0, l.stack[key]
+
 	if k == nil { // first iteration
 		t.iterationKeys = nil
 	} else if i = arrayIndex(k); 0 < i && i <= len(t.array) {
