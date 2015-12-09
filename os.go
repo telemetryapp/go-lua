@@ -74,7 +74,7 @@ var osLibrary = []RegistryFunction{
 			CheckType(l, 1, TypeTable)
 			l.SetTop(1)
 			year := field(l, "year", -1)
-			month := field(l, "month", -1) - 1
+			month := field(l, "month", -1)
 			day := field(l, "day", -1)
 			hour := field(l, "hour", 12)
 			min := field(l, "min", 0)
