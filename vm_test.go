@@ -206,6 +206,7 @@ func TestError(t *testing.T) {
 	errorHandled := false
 	program := "error('error')"
 	l.PushGoFunction(func(l *State) int {
+		t.Log(l.Top())
 		if l.Top() == 0 {
 			t.Error("error handler received no arguments")
 		} else if errorMessage, ok := l.ToString(-1); !ok {
