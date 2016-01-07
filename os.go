@@ -21,9 +21,109 @@ func field(l *State, key string, def int) int {
 	return r
 }
 
+// http://www.lua.org/pil/22.1.html
+var conversion = map[rune]string{
+	/*stdWeekDay        */ 'a': "Mon",
+	/*stdLongWeekDay    */ 'A': "Monday",
+	/*stdMonth          */ 'b': "Jan",
+	/*stdLongMonth      */ 'B': "January",
+	/*						      */ 'c': "01/02/06 15:04:05",
+	/*stdZeroDay        */ 'd': "02",
+	/*stdHour           */ 'H': "15",
+	/*stdZeroHour12     */ 'I': "03",
+	/*stdZeroMinute     */ 'M': "04",
+	/*stdZeroMonth      */ 'm': "01",
+	/*stdPM             */ 'p': "pm",
+	/*stdZeroSecond     */ 'S': "05",
+	/* @todo %w	weekday (3) [0-6 = Sunday-Saturday]	*/
+	/*						      */ 'x': "01/02/06",
+	/*						      */ 'X': "15:04:05",
+	/*stdLongYear       */ 'Y': "2006",
+	/*stdYear           */ 'y': "06",
+	/*						      */ '%': "%",
+}
+
+// Taken from https://github.com/jehiah/go-strftime
+// This is an alternative to time.Format because no one knows
+// what date 040305 is supposed to create when used as a 'layout' string
+// this takes standard strftime format options. For a complete list
+// of format options see http://strftime.org/
+func Format(format string, t time.Time) string {
+	retval := make([]byte, 0, len(format))
+	for i, ni := 0, 0; i < len(format); i = ni + 2 {
+		ni = strings.IndexByte(format[i:], '%')
+		if ni < 0 {
+			ni = len(format)
+		} else {
+			ni += i
+		}
+		retval = append(retval, []byte(format[i:ni])...)
+		if ni+1 < len(format) {
+			c := format[ni+1]
+			if c == '%' {
+				retval = append(retval, '%')
+			} else {
+				if layoutCmd, ok := conversion[rune(c)]; ok {
+					retval = append(retval, []byte(t.Format(layoutCmd))...)
+				} else {
+					retval = append(retval, '%', c)
+				}
+			}
+		} else {
+			if ni < len(format) {
+				retval = append(retval, '%')
+			}
+		}
+	}
+	return string(retval)
+}
+
 var osLibrary = []RegistryFunction{
 	{"clock", clock},
-	// {"date", os_date},
+	{"date", func(l *State) int {
+
+		// If no format string is provided then default to %c
+		formatString := OptString(l, 1, "%c")
+
+		intTime := int64(OptInteger(l, 2, int(time.Now().Unix())))
+		curTime :=  time.Unix(intTime, 0)
+
+		year, month, day := curTime.Date()
+		hour, min, sec := curTime.Clock()
+		wday := int(curTime.Weekday())
+		yday := curTime.YearDay()
+
+		if formatString == "*t" {
+			l.CreateTable(8, 0)
+
+			l.PushInteger(sec)
+			l.SetField(-2, "sec")
+
+			l.PushInteger(min)
+			l.SetField(-2, "min")
+
+			l.PushInteger(hour)
+			l.SetField(-2, "hour")
+
+			l.PushInteger(day)
+			l.SetField(-2, "day")
+
+			l.PushInteger(int(month))
+			l.SetField(-2, "month")
+
+			l.PushInteger(year)
+			l.SetField(-2, "year")
+
+			l.PushInteger(wday)
+			l.SetField(-2, "wday")
+
+			l.PushInteger(yday)
+			l.SetField(-2, "yday")
+		} else {
+			l.PushString(Format(formatString, curTime))
+		}
+		return 1
+	}},
 	{"difftime", func(l *State) int {
 		l.PushNumber(time.Unix(int64(CheckNumber(l, 1)), 0).Sub(time.Unix(int64(OptNumber(l, 2, 0)), 0)).Seconds())
 		return 1
