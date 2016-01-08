@@ -27,7 +27,7 @@ var conversion = map[rune]string{
 	/*stdLongWeekDay    */ 'A': "Monday",
 	/*stdMonth          */ 'b': "Jan",
 	/*stdLongMonth      */ 'B': "January",
-	/*						      */ 'c': "01/02/06 15:04:05",
+	/*                  */ 'c': "01/02/06 15:04:05",
 	/*stdZeroDay        */ 'd': "02",
 	/*stdHour           */ 'H': "15",
 	/*stdZeroHour12     */ 'I': "03",
@@ -36,11 +36,11 @@ var conversion = map[rune]string{
 	/*stdPM             */ 'p': "pm",
 	/*stdZeroSecond     */ 'S': "05",
 	/* @todo %w	weekday (3) [0-6 = Sunday-Saturday]	*/
-	/*						      */ 'x': "01/02/06",
-	/*						      */ 'X': "15:04:05",
+	/*                  */ 'x': "01/02/06",
+	/*                  */ 'X': "15:04:05",
 	/*stdLongYear       */ 'Y': "2006",
 	/*stdYear           */ 'y': "06",
-	/*						      */ '%': "%",
+	/*                  */ '%': "%",
 }
 
 // Taken from https://github.com/jehiah/go-strftime
@@ -81,17 +81,28 @@ func Format(format string, t time.Time) string {
 var osLibrary = []RegistryFunction{
 	{"clock", clock},
 	{"date", func(l *State) int {
-
 		// If no format string is provided then default to %c
 		formatString := OptString(l, 1, "%c")
+		intTime := OptInteger(l, 2, -1)
 
-		intTime := int64(OptInteger(l, 2, int(time.Now().Unix())))
-		curTime :=  time.Unix(intTime, 0)
+		var parsedTime time.Time
+		if intTime == -1 {
+			parsedTime = time.Now()
+		} else {
+			parsedTime = time.Unix(int64(intTime), 0)
+		}
 
-		year, month, day := curTime.Date()
-		hour, min, sec := curTime.Clock()
-		wday := int(curTime.Weekday())
-		yday := curTime.YearDay()
+		// Process time in UTC
+		if formatString[0] == '!' {
+			// Delete the ! character
+			formatString = formatString[1:len(formatString)]
+			parsedTime = parsedTime.UTC()
+		}
+
+		year, month, day := parsedTime.Date()
+		hour, min, sec := parsedTime.Clock()
+		wday := int(parsedTime.Weekday())
+		yday := parsedTime.YearDay()
 
 		if formatString == "*t" {
 			l.CreateTable(8, 0)
@@ -120,7 +131,7 @@ var osLibrary = []RegistryFunction{
 			l.PushInteger(yday)
 			l.SetField(-2, "yday")
 		} else {
-			l.PushString(Format(formatString, curTime))
+			l.PushString(Format(formatString, parsedTime))
 		}
 		return 1
 	}},
